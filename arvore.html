@@ -1,0 +1,57 @@
+import streamlit as st
+import firebase_admin
+from firebase_admin import credentials, firestore
+import streamlit.components.v1 as components
+import pandas as pd
+import os
+
+# --- 1. CONFIGURAÇÃO E SEGURANÇA ---
+st.set_page_config(layout="wide", page_title="MATRIZ-VITRUVIANA-INTEGRADA")
+
+if not firebase_admin._apps:
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# --- 2. INTERFACE PRINCIPAL ---
+st.title("🩺 MATRIZ-VITRUVIANA-INTEGRADA")
+
+# Divisão de layout: Esquerda (Mapa/Visual) | Direita (Dados Clínicos)
+col_esq, col_dir = st.columns([1.5, 1])
+
+with col_esq:
+    st.subheader("Mapa Holográfico Interativo")
+    # Carrega o seu HTML original e renderiza
+    if os.path.exists("arvore.html"):
+        with open("arvore.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+            components.html(html_content, height=750, scrolling=True)
+    else:
+        st.error("Erro: Arquivo 'arvore.html' não encontrado na pasta raiz.")
+
+with col_dir:
+    st.subheader("Anamnese Holística & Dr. Tan")
+    with st.form("form_matriz", clear_on_submit=True):
+        nome = st.text_input("Nome do Paciente")
+        idade = st.number_input("Idade", min_value=0, max_value=120)
+        diag_coluna = st.selectbox("Quiropraxia (Coluna)", ["Cervical", "Torácica", "Lombar"])
+        canal_tan = st.selectbox("Canal Alvo (Dr. Tan)", ["Tai Yin", "Shaoyang", "Jueyin", "Tai Yang"])
+        obs = st.text_area("Observações Clínicas")
+        
+        if st.form_submit_button("Registrar na Matriz"):
+            db.collection('Pacientes').add({
+                'nome': nome, 'idade': idade, 
+                'diagnostico': diag_coluna,
+                'canal': canal_tan, 'obs': obs
+            })
+            st.success("Dados integrados com sucesso!")
+            st.rerun()
+
+# --- 3. HISTÓRICO E DADOS ---
+st.divider()
+st.subheader("📋 Registro de Consultas (Histórico da Matriz)")
+docs = db.collection('Pacientes').stream()
+df = pd.DataFrame([d.to_dict() for d in docs])
+
+if not df.empty:
+    st.dataframe(df, use_container_width=True)

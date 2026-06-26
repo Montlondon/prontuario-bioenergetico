@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bússola Absoluta — Matriz Vitruviana Integrada</title>
+    <style>
+        :root {
+            --bg-space: #020617;
+            --panel-bg: rgba(15, 23, 42, 0.95);
+            --gold: #f59e0b;
+            --cyan: #06b6d4;
+            --purple: #a855f7;
+            --pink: #ec4899;
+            --xray-blue: #38bdf8;
+            --fogo: #ef4444; --terra: #eab308; --metal: #94a3b8; --agua: #3b82f6; --madeira: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #020617;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 2.2rem; margin: 0; background: linear-gradient(135deg, var(--gold), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 640px 1fr;
+            gap: 25px;
+            width: 100%;
+            max-width: 1700px;
+        }
+
+        .canvas-box {
+            background: #000000;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 24px;
+            padding: 15px;
+            box-shadow: 0 0 50px rgba(0, 229, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .panel-right { display: flex; flex-direction: column; gap: 20px; }
+        .card { background: var(--panel-bg); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .card-title { color: var(--gold); font-size: 1.2rem; margin-bottom: 15px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        
+        .vitruviano-circle, .vitruviano-square { stroke: rgba(56, 189, 248, 0.1); stroke-width: 1; fill: none; }
+        
+        .boneco-corpo { stroke: var(--xray-blue); stroke-width: 1.2; fill: none; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.4)); opacity: 0.6; }
+        .boneco-silhueta { stroke: rgba(56, 189, 248, 0.15); stroke-width: 1; fill: none; opacity: 0.3; }
+        
+        .orgao-neon { stroke-width: 1.5; fill: none; opacity: 0.2; transition: all 0.5s ease; filter: drop-shadow(0 0 2px transparent); }
+        .orgao-neon.ativo { opacity: 0.95; filter: drop-shadow(0 0 8px var(--cor-orgao)); }
+
+        /* Trajetos Anatômicos Reais dos Meridianos */
+        .meridiano-trajeto { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px transparent); opacity: 0.15; transition: all 0.6s ease; fill: none; }
+        .meridiano-trajeto.ativo { opacity: 1; filter: drop-shadow(0 0 12px var(--cor-ativa)) !important; stroke-width: 4; }
+
+        /* Tags de Identificação dos Canais (Ex: VB, F) */
+        .tag-meridiano { font-size: 10px; font-weight: bold; fill: #475569; transition: all 0.5s ease; }
+        .tag-meridiano.ativo { fill: #ffffff; filter: drop-shadow(0 0 5px var(--cor-ativa)); font-size: 12px; }
+
+        .sefira { fill: rgba(2, 6, 23, 0.85); stroke: var(--cyan); stroke-width: 1.5; transition: all 0.3s; cursor: pointer; }
+        .sefira:hover { fill: rgba(6, 182, 212, 0.3); filter: drop-shadow(0 0 12px var(--cyan)); }
+        .canal-arvore { stroke: rgba(255, 255, 255, 0.05); stroke-width: 1; pointer-events: none; }
+
+        .vertebra-ponto { fill: #f59e0b; stroke: #000; stroke-width: 1; cursor: pointer; transition: all 0.2s; }
+        .vertebra-ponto:hover { fill: var(--pink) !important; r: 7px; filter: drop-shadow(0 0 8px var(--pink)); }
+
+        .tan-node { fill: #10b981; stroke: #fff; stroke-width: 1; cursor: pointer; transition: all 0.2s; }
+        .tan-label { font-size: 8px; fill: #64748b; font-weight: bold; }
+
+        .elem-node { cursor: pointer; stroke-width: 1.5; }
+        .elem-text { font-size: 9px; fill: #fff; text-anchor: middle; font-weight: bold; pointer-events: none; }
+        .sefira-hebrew { font-size: 13px; fill: var(--gold); font-weight: bold; text-anchor: middle; pointer-events: none; }
+        .sefira-gematria { font-size: 8px; fill: #94a3b8; text-anchor: middle; pointer-events: none; }
+        .sefira-nome { font-size: 8px; fill: #cbd5e1; text-anchor: middle; pointer-events: none; }
+
+        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .grid-triple { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        input, select, textarea { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); padding: 10px; color: #f8fafc; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.9rem; }
+        input:focus, select:focus, textarea:focus { border-color: var(--cyan); outline: none; }
+        
+        button { background: linear-gradient(135deg, #d97706, #f59e0b); color: #020617; font-weight: bold; cursor: pointer; border: none; padding: 12px; border-radius: 8px; font-size: 0.95rem; transition: all 0.2s; width: 100%; }
+        button:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(245,158,11,0.4); }
+        
+        .num-result { background: rgba(6, 182, 212, 0.03); border: 1px solid rgba(6, 182, 212, 0.15); border-left: 4px solid var(--cyan); padding: 15px; border-radius: 8px; font-size: 0.9rem; line-height: 1.5; }
+        
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+        th, td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { color: var(--gold); }
+
+        .info-block { margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 2px solid var(--cyan); }
+        .info-title { font-weight: bold; color: var(--gold); font-size: 0.85rem; text-transform: uppercase; }
+        
+        .grid-tan { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+        .tan-box { background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.2); padding: 8px; border-radius: 6px; font-size: 0.85rem; }
+        .tan-box-title { font-weight: bold; color: var(--cyan); margin-bottom: 4px; font-size: 0.75rem; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>BÚSSOLA ABSOLUTA • MATRIZ VITRUVIANA INTEGRADA</h1>
+        <div style="color: #64748b; letter-spacing: 2px; font-size: 0.8rem; text-transform: uppercase; margin-top: 5px;">MTC • Balance Method Dr. Tan • Seitai • Árvore Sefrótica • Psicanálise</div>
+    </div>
+
+    <div class="main-container">
+        
+        <!-- CANVAS ESQUERDO -->
+        <div class="canvas-box">
+            <svg id="vitruvian-matrix" width="600" height="720" viewBox="0 0 600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+                
+                <circle class="vitruviano-circle" cx="300" cy="360" r="280" />
+                <rect class="vitruviano-square" x="20" y="80" width="560" height="560" />
+
+                <g class="boneco-silhueta">
+                    <path d="M 300,105 C 285,105 285,155 300,155 C 315,155 315,105 300,105 Z" />
+                    <path d="M 275,165 L 60,185 C 40,187 40,213 60,215 L 275,235" />
+                    <path d="M 325,165 L 540,185 C 560,187 560,213 540,215 L 325,235" />
+                    <path d="M 260,400 L 120,650 C 110,665 130,675 140,660 L 285,430" />
+                    <path d="M 340,400 L 480,650 C 490,665 470,675 460,660 L 315,430" />
+                </g>
+
+                <!-- TRAJETOS ANATÔMICOS DOS 5 ELEMENTOS -->
+                <g id="trajetos-meridianos">
+                    <!-- MADEIRA: Fígado (Yin do Pé -> Tórax) & VB (Yang do Pé -> Cabeça) -->
+                    <path id="traj-F" class="meridiano-trajeto" d="M 80,660 L 160,550 L 265,420 L 275,300 L 280,240" stroke="var(--madeira)" />
+                    <text id="lbl-F" x="70" y="675" class="tag-meridiano">F</text>
+
+                    <path id="traj-VB" class="meridiano-trajeto" d="M 520,660 L 440,550 L 335,420 L 340,280 L 325,240 L 315,130 C 315,100 330,100 300,95" stroke="var(--madeira)" />
+                    <text id="lbl-VB" x="525" y="675" class="tag-meridiano">VB</text>
+
+                    <!-- FOGO: C/PC (Yin da Mão -> Tórax) & ID/TA (Yang da Mão -> Cabeça) -->
+                    <path id="traj-C" class="meridiano-trajeto" d="M 40,100 L 120,130 L 265,165 L 290,195" stroke="var(--fogo)" />
+                    <text id="lbl-C" x="25" y="100" class="tag-meridiano">C/PC</text>
+
+                    <path id="traj-ID" class="meridiano-trajeto" d="M 560,100 L 480,130 L 335,165 L 305,120" stroke="var(--fogo)" />
+                    <text id="lbl-ID" x="565" y="100" class="tag-meridiano">ID/TA</text>
+
+                    <!-- METAL: Pulmão (Yin da Mão) & IG (Yang da Mão) -->
+                    <path id="traj-P" class="meridiano-trajeto" d="M 35,200 L 115,200 L 265,175 L 275,190" stroke="var(--metal)" />
+                    <text id="lbl-P" x="20" y="205" class="tag-meridiano">P</text>
+
+                    <path id="traj-IG" class="meridiano-trajeto" d="M 565,200 L 485,200 L 335,175 L 300,140" stroke="var(--metal)" />
+                    <text id="lbl-IG" x="575" y="205" class="tag-meridiano">IG</text>
+
+                    <!-- TERRA: Baço (Yin do Pé) & Estômago (Yang do Pé) -->
+                    <path id="traj-BP" class="meridiano-trajeto" d="M 260,680 L 260,540 L 275,415 L 290,320 L 310,250" stroke="var(--terra)" />
+                    <text id="lbl-BP" x="255" y="695" class="tag-meridiano">BP</text>
+
+                    <path id="traj-E" class="meridiano-trajeto" d="M 340,680 L 340,540 L 325,415 L 310,320 L 320,245 L 300,115" stroke="var(--terra)" />
+                    <text id="lbl-E" x="335" y="695" class="tag-meridiano">E</text>
+
+                    <!-- ÁGUA: Rins (Yin do Pé) & Bexiga (Yang do Pé) -->
+                    <path id="traj-R" class="meridiano-trajeto" d="M 140,660 L 260,400 L 280,280" stroke="var(--agua)" />
+                    <text id="lbl-R" x="145" y="675" class="tag-meridiano">R</text>
+
+                    <path id="traj-B" class="meridiano-trajeto" d="M 460,660 L 340,400 L 300,145 L 295,115" stroke="var(--agua)" />
+                    <text id="lbl-B" x="450" y="675" class="tag-meridiano">B</text>
+                </g>
+
+                <!-- ÓRGÃOS INTERNOS RAIO-X -->
+                <g id="orgaos-anatomia">
+                    <path id="org-PULMOES" class="orgao-neon" d="M 275,175 C 260,175 255,210 265,230 C 275,235 285,220 285,190 Z M 325,175 C 340,175 345,210 335,230 C 325,235 315,220 315,190 Z" stroke="var(--metal)" style="--cor-orgao: var(--metal);" />
+                    <path id="org-CORACAO" class="orgao-neon" d="M 300,185 C 290,185 285,195 300,210 C 315,195 310,185 300,185 Z" stroke="var(--fogo)" style="--cor-orgao: var(--fogo);" />
+                    <path id="org-FIGADO" class="orgao-neon" d="M 270,240 L 295,240 L 290,255 C 280,260 270,250 270,240 Z" stroke="var(--madeira)" style="--cor-orgao: var(--madeira);" />
+                    <path id="org-ESTOMAGO" class="orgao-neon" d="M 305,240 L 325,245 C 330,255 315,260 305,255 Z" stroke="var(--terra)" style="--cor-orgao: var(--terra);" />
+                    <g id="org-RINS" class="orgao-neon" stroke="var(--agua)" style="--cor-orgao: var(--agua);">
+                        <path d="M 280,275 C 275,275 275,285 280,285 Z" />
+                        <path d="M 320,275 C 325,275 325,285 320,285 Z" />
+                    </g>
+                </g>
+
+                <g class="boneco-corpo">
+                    <circle cx="300" cy="130" r="15" />
+                    <path d="M 300,145 L 300,410" />
+                    <path d="M 280,180 Q 300,175 320,180 M 275,195 Q 300,190 325,195 M 270,210 Q 300,205 330,210 M 270,225 Q 300,220 330,225 M 275,240 Q 300,235 325,240 M 280,255 Q 300,250 320,255" />
+                    <path d="M 265,165 Q 300,170 335,165" />
+                    <path d="M 270,390 Q 300,380 330,390 L 340,420 Q 300,430 260,420 Z" />
+                </g>
+
+                <!-- Nós de Equilíbrio Dr. Tan nos Membros -->
+                <g id="pontos-dr-tan">
+                    <circle class="tan-node" cx="80" cy="115" r="4" onclick="exibirInfoTan('Braço Esquerdo', 'Pontos de Comando Clínico superiores.')" />
+                    <text x="80" y="107" class="tan-label">B.E.</text>
+                    <circle class="tan-node" cx="520" cy="115" r="4" onclick="exibirInfoTan('Braço Direito', 'Pontos de Resonância superiores.')" />
+                    <text x="520" y="107" class="tan-label">B.D.</text>
+                    <circle class="tan-node" cx="120" cy="600" r="4" onclick="exibirInfoTan('Perna Esquerda', 'Espelhamento inferior esquerdo.')" />
+                    <text x="100" y="603" class="tan-label">P.E.</text>
+                    <circle class="tan-node" cx="480" cy="600" r="4" onclick="exibirInfoTan('Perna Direita', 'Espelhamento inferior direito.')" />
+                    <text x="490" y="603" class="tan-label">P.D.</text>
+                </g>
+
+                <!-- Árvore Sefrótica -->
+                <g>
+                    <line class="canal-arvore" x1="300" y1="110" x2="380" y2="190" /><line class="canal-arvore" x1="300" y1="110" x2="220" y2="190" />
+                    <line class="canal-arvore" x1="220" y1="190" x2="380" y2="190" /><line class="canal-arvore" x1="220" y1="190" x2="220" y2="340" />
+                    <line class="canal-arvore" x1="380" y1="190" x2="380" y2="340" /><line class="canal-arvore" x1="220" y1="190" x2="300" y2="340" />
+                    <line class="canal-arvore" x1="380" y1="190" x2="300" y2="340" /><line class="canal-arvore" x1="220" y1="340" x2="380" y2="340" />
+                    <line class="canal-arvore" x1="220" y1="340" x2="220" y2="490" /><line class="canal-arvore" x1="380" y1="340" x2="380" y2="490" />
+                    <line class="canal-arvore" x1="300" y1="110" x2="300" y2="610" /><line class="canal-arvore" x1="220" y1="490" x2="300" y2="610" />
+                    <line class="canal-arvore" x1="380" y1="490" x2="300" y2="610" />
+                </g>
+
+                <!-- Sefirot -->
+                <circle class="sefira" id="sef-1" cx="300" cy="110" r="16" onclick="exibirDadosSefira(1)" /><text x="300" y="111" class="sefira-hebrew">כ</text><text x="300" y="87" class="sefira-nome">Keter</text>
+                <circle class="sefira" id="sef-2" cx="380" cy="190" r="16" onclick="exibirDadosSefira(2)" /><text x="380" y="191" class="sefira-hebrew">ח</text><text x="410" y="185" class="sefira-nome">Chochmah</text>
+                <circle class="sefira" id="sef-3" cx="220" cy="190" r="16" onclick="exibirDadosSefira(3)" /><text x="220" y="191" class="sefira-hebrew">ב</text><text x="190" y="185" class="sefira-nome">Binah</text>
+                <circle class="sefira" id="sef-4" cx="380" cy="340" r="16" onclick="exibirDadosSefira(4)" /><text x="380" y="341" class="sefira-hebrew">ח</text><text x="410" y="335" class="sefira-nome">Chesed</text>
+                <circle class="sefira" id="sef-5" cx="220" cy="340" r="16" onclick="exibirDadosSefira(5)" /><text x="220" y="341" class="sefira-hebrew">ג</text><text x="190" y="335" class="sefira-nome">Gevurah</text>
+                <circle class="sefira" id="sef-6" cx="300" cy="340" r="16" onclick="exibirDadosSefira(6)" /><text x="300" y="341" class="sefira-hebrew">ת</text><text x="300" y="315" class="sefira-nome">Tiferet</text>
+                <circle class="sefira" id="sef-7" cx="380" cy="490" r="16" onclick="exibirDadosSefira(7)" /><text x="380" y="491" class="sefira-hebrew">נ</text><text x="415" y="485" class="sefira-nome">Netzach</text>
+                <circle class="sefira" id="sef-8" cx="210" cy="490" r="16" onclick="exibirDadosSefira(8)" /><text x="210" y="491" class="sefira-hebrew">ה</text><text x="180" y="485" class="sefira-nome">Hod</text>
+                <circle class="sefira" id="sef-9" cx="300" cy="490" r="16" onclick="exibirDadosSefira(9)" /><text x="300" y="491" class="sefira-hebrew">י</text><text x="300" y="465" class="sefira-nome">Yesod</text>
+                <circle class="sefira" id="sef-10" cx="300" cy="610" r="16" onclick="exibirDadosSefira(10)" /><text x="300" y="611" class="sefira-hebrew">מ</text><text x="300" y="638" class="sefira-nome">Malkhut</text>
+
+                <!-- Coluna Vertebral -->
+                <g id="coluna-vertebral-pontos">
+                    <circle class="vertebra-ponto" cx="300" cy="155" r="4" fill="#38bdf8" onclick="cliqueVertebra('Cervical', '#38bdf8', 'Cervicalgias e tireoide.', 'Tração Occipital Seitai.')" />
+                    <circle class="vertebra-ponto" cx="300" cy="200" r="4" fill="#f97316" onclick="cliqueVertebra('Torácica Alta', '#f97316', 'Asma, Palpitações.', 'Ajuste Seitai Escapular.')" />
+                    <circle class="vertebra-ponto" cx="300" cy="245" r="4" fill="#eab308" onclick="cliqueVertebra('Torácica Média', '#eab308', 'Gastrites, Qi estagnado.', 'Percussão rítmica com Bambu.')" />
+                    <circle class="vertebra-ponto" cx="300" cy="330" r="4" fill="#ec4899" onclick="cliqueVertebra('Lombar', '#ec4899', 'Lombalgias e ciatalgia.', 'Báscula pélvica lateral.')" />
+                    <circle class="vertebra-ponto" cx="300" cy="405" r="4" fill="#a855f7" onclick="cliqueVertebra('Sacro', '#a855f7', 'Falta de enraizamento.', 'Compressão sacral contínua.')" />
+                </g>
+
+                <!-- Nós de Elemento Estáticos -->
+                <circle class="elem-node" cx="300" cy="20" r="12" fill="#000" stroke="var(--fogo)"/><text x="300" y="23" class="elem-text">FOGO</text>
+                <circle class="elem-node" cx="560" cy="220" r="12" fill="#000" stroke="var(--terra)"/><text x="560" y="223" class="elem-text">TER</text>
+                <circle class="elem-node" cx="490" cy="590" r="12" fill="#000" stroke="var(--metal)"/><text x="490" y="593" class="elem-text">MET</text>
+                <circle class="elem-node" cx="110" cy="590" r="12" fill="#000" stroke="var(--agua)"/><text x="110" y="593" class="elem-text">ÁGUA</text>
+                <circle class="elem-node" cx="40" cy="220" r="12" fill="#000" stroke="var(--madeira)"/><text x="40" y="223" class="elem-text">MAD</text>
+
+            </svg>
+        </div>
+
+        <!-- PAINEL DIREITO -->
+        <div class="panel-right">
+            <div class="card">
+                <div class="card-title">Anamnese Holística Absoluta & Dr. Tan</div>
+                <div class="grid-inputs">
+                    <input type="text" id="p-nome" placeholder="Nome Completo do Paciente">
+                    <input type="date" id="p-nasc">
+                </div>
+                <div class="grid-triple">
+                    <input type="text" id="p-queixa" placeholder="Sintoma Clínico / Dor Física">
+                    <select id="p-canal-tan">
+                        <option value="">-- Selecione o Canal Alvo (Dr. Tan) --</option>
+                        <option value="1">P (Pulmão) - Yin da Mão [METAL]</option>
+                        <option value="2">C (Coração) - Yin da Mão [FOGO]</option>
+                        <option value="3">PC (Pericárdio) - Yin da Mão [FOGO]</option>
+                        <option value="4">IG (Intestino Grosso) - Yang da Mão [METAL]</option>
+                        <option value="5">ID (Intestino Delgado) - Yang da Mão [FOGO]</option>
+                        <option value="6">TA (Triplo Aquecedor) - Yang da Mão [FOGO]</option>
+                        <option value="7">BP (Baço/Pâncreas) - Yin do Pé [TERRA]</option>
+                        <option value="8">R (Rins) - Yin do Pé [ÁGUA]</option>
+                        <option value="9">F (Fígado) - Yin do Pé [MADEIRA]</option>
+                        <option value="10">E (Estômago) - Yang do Pé [TERRA]</option>
+                        <option value="11">B (Bexiga) - Yang do Pé [ÁGUA]</option>
+                        <option value="12">VB (Vesícula Biliar) - Yang do Pé [MADEIRA]</option>
+                    </select>
+                    <select id="p-psique">
+                        <option value="Neurose Obsessiva">Estrutura: Neurose Obsessiva</option>
+                        <option value="Histeria Somática">Estrutura: Histeria Somática</option>
+                        <option value="Fixação Traumática">Estrutura: Fixação de Trauma</option>
+                    </select>
+                </div>
+                <button onclick="processarPaciente()">Calcular Matriz Integrada</button>
+                <div id="res-numerologia" class="num-result" style="margin-top: 15px; display: none;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Janela Holográfica Interativa de Diagnóstico</div>
+                <div id="janela-diagnostico" style="line-height: 1.6; font-size: 0.95rem; color: #cbd5e1;">
+                    Gere o cálculo da matriz ou clique nas estruturas do mapa cirúrgico para ver os detalhes clínicos.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Histórico de Atendimentos</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Paciente</th>
+                                <th>Data Nasc.</th>
+                                <th>Queixa Corporal</th>
+                                <th>Rota</th>
+                                <th>Canal Alvo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historico-corpo">
+                            <tr>
+                                <td colspan="5" style="color: #64748b; text-align: center;">Nenhum prontuário registrado nesta sessão até o momento.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mapeamento dos canais acoplados para acender os caminhos anatômicos corretos
+        const mapeamentoCanais = {
+            1: { elem: "METAL", org: "PULMOES", trajeto: "traj-P", label: "lbl-P" },
+            2: { elem: "FOGO", org: "CORACAO", trajeto: "traj-C", label: "lbl-C" },
+            3: { elem: "FOGO", org: "CORACAO", trajeto: "traj-C", label: "lbl-C" },
+            4: { elem: "METAL", org: "PULMOES", trajeto: "traj-IG", label: "lbl-IG" },
+            5: { elem: "FOGO", org: "CORACAO", trajeto: "traj-ID", label: "lbl-ID" },
+            6: { elem: "FOGO", org: "CORACAO", trajeto: "traj-ID", label: "lbl-ID" },
+            7: { elem: "TERRA", org: "ESTOMAGO", trajeto: "traj-BP", label: "lbl-BP" },
+            8: { elem: "AGUA", org: "RINS", trajeto: "traj-R", label: "lbl-R" },
+            9: { elem: "MADEIRA", org: "FIGADO", trajeto: "traj-F", label: "lbl-F" },
+            10: { elem: "TERRA", org: "ESTOMAGO", trajeto: "traj-E", label: "lbl-E" },
+            11: { elem: "AGUA", org: "RINS", trajeto: "traj-B", label: "lbl-B" },
+            12: { elem: "MADEIRA", org: "FIGADO", trajeto: "traj-VB", label: "lbl-VB" }
+        };
+
+        const matrizDrTan = {
+            1: { alvo: "P (Pulmão) - Yin da Mão", be: "P (Pulmão)", bd: "IG (Intestino Grosso)", pe: "B (Bexiga)", pd: "BP (Baço/Pâncreas) e F (Fígado)" },
+            2: { alvo: "C (Coração) - Yin da Mão", be: "C (Coração)", bd: "ID (Intestino Delgado)", pe: "VB (Vesícula Biliar)", pd: "BP (Baço/Pâncreas) e R (Rins)" },
+            3: { alvo: "PC (Pericárdio) - Yin da Mão", be: "PC (Pericárdio)", bd: "TA (Triplo Aquecedor)", pe: "E (Estômago)", pd: "F (Fígado) e R (Rins)" },
+            4: { alvo: "IG (Intestino Grosso) - Yang da Mão", be: "IG (Intestino Grosso)", bd: "P (Pulmão)", pe: "F (Fígado) e R (Rins)", pd: "E (Estômago)" },
+            5: { alvo: "ID (Intestino Delgado) - Yang da Mão", be: "ID (Intestino Delgado)", bd: "C (Coração)", pe: "BP (Baço/Pâncreas) e F (Fígado)", pd: "B (Bexiga)" },
+            6: { alvo: "TA (Triplo Aquecedor) - Yang da Mão", be: "TA (Triplo Aquecedor)", bd: "PC (Pericárdio)", pe: "R (Rins) e BP (Baço/Pâncreas)", pd: "VB (Vesícula Biliar)" },
+            7: { alvo: "BP (Baço/Pâncreas) - Yin do Pé", be: "ID (Intestino Delgado) e TA (Triplo Aquecedor)", bd: "P (Pulmão) e C (Coração)", pe: "BP (Baço/Pâncreas) [Pé]", pd: "E (Estômago) [Pé]" },
+            8: { alvo: "R (Rins) - Yin do Pé", be: "TA (Triplo Aquecedor) e IG (Intestino Grosso)", bd: "C (Coração) e PC (Pericárdio)", pe: "R (Rins) [Pé]", pd: "B (Bexiga) [Pé]" },
+            9: { alvo: "F (Fígado) - Yin do Pé", be: "IG (Intestino Grosso) e ID (Intestino Delgado)", bd: "PC (Pericárdio) e P (Pulmão)", pe: "F (Fígado) [Pé]", pd: "VB (Vesícula Biliar)" },
+            10: { alvo: "E (Estômago) - Yang do Pé", be: "PC (Pericárdio)", bd: "IG (Intestino Grosso)", pe: "E (Estômago) [Pé]", pd: "BP (Baço/Pâncreas)" },
+            11: { alvo: "B (Bexiga) - Yang do Pé", be: "P (Pulmão)", bd: "ID (Intestino Delgado)", pe: "B (Bexiga) [Pé]", pd: "R (Rins) [Pé]" },
+            12: { alvo: "VB (Vesícula Biliar) - Yang do Pé", be: "C (Coração)", bd: "TA (Triplo Aquecedor)", pe: "VB (Vesícula Biliar) [Pé]", pd: "F (Fígado) [Pé]" }
+        };
+
+        const bancoSefirot = {
+            1: { nome: "Keter (כֶּתֶר)", letra: "Khaf (כ)", gematria: "620", significado: "O Ponto Zero da manifestação.", metafisica: "Recusa radical da realidade material encarnada.", psicanalise: "Mecanismo de Foraclusão psicótica." },
+            6: { nome: "Tiferet (תִּפְאֶרֶת)", letra: "Tav (ת)", gematria: "1081", significado: "O Sol Central. Equilíbrio absoluto.", metafisica: "Arritmias somáticas, oscilações no plexo solar.", psicanalise: "O centro de gravidade narcísico fraturado." }
+        };
+
+        function exibirDadosSefira(id) {
+            const data = bancoSefirot[id] || { nome: "Sefirá Oculta", letra: "N/A", gematria: "N/A", significado: "Fluxo de Energia Vital", metafisica: "Desequilíbrio sutil", psicanalise: "Conteúdo inconsciente" };
+            document.getElementById('janela-diagnostico').innerHTML = `
+                <span style="color:var(--gold); font-size:1.3rem; font-weight:bold;">${data.nome}</span>
+                <div class="info-block"><div class="info-title">Letra / Gematria</div><div>${data.letra} (Valor: ${data.gematria})</div></div>
+                <div class="info-block"><div class="info-title">Arquétipo</div><div>${data.significado}</div></div>
+                <div class="info-block"><div class="info-title">Desequilíbrio Metafísico</div><div style="color:#f43f5e;">${data.metafisica}</div></div>
+            `;
+        }
+
+        function cliqueVertebra(nome, cor, sintomas, manobra) {
+            document.getElementById('janela-diagnostico').innerHTML = `
+                <span style="color:${cor}; font-size:1.2rem; font-weight:bold;">Ajuste Seitai: ${nome}</span>
+                <p><strong>Sintomas:</strong> ${sintomas}</p>
+                <p><strong>Manobra:</strong> ${manobra}</p>
+            `;
+        }
+
+        let historicoPacientes = [];
+        
+        function processarPaciente() {
+            const nome = document.getElementById('p-nome').value || "Paciente Anônimo";
+            const nasc = document.getElementById('p-nasc').value;
+            const queixa = document.getElementById('p-queixa').value || "Não informada";
+            const idTan = document.getElementById('p-canal-tan').value;
+            const psique = document.getElementById('p-psique').value;
+
+            if(!nasc) { alert("Preencha a data de nascimento."); return; }
+
+            // RESET TOTAL DE ESTADOS VISUAIS
+            document.querySelectorAll('.meridiano-trajeto').forEach(el => {
+                el.classList.remove('ativo');
+                el.style.removeProperty('--cor-ativa');
+            });
+            document.querySelectorAll('.tag-meridiano').forEach(el => {
+                el.classList.remove('ativo');
+                el.style.removeProperty('--cor-ativa');
+            });
+            document.querySelectorAll('.orgao-neon').forEach(el => el.classList.remove('ativo'));
+
+            const partes = nasc.split('-');
+            const dia = parseInt(partes[2]); const mes = parseInt(partes[1]); const ano = parseInt(partes[0]);
+            function reduzir(num) {
+                let s = num.toString().split('').reduce((acc, d) => acc + parseInt(d), 0);
+                if (s > 9 && s !== 11 && s !== 22) return reduzir(s);
+                return s;
+            }
+            const rotaMissao = reduzir(dia + mes + reduzir(ano));
+
+            let canalAlvoTexto = "Não Selecionado";
+            let htmlTan = "";
+
+            if(idTan && matrizDrTan[idTan]) {
+                const sistema = matrizDrTan[idTan];
+                canalAlvoTexto = sistema.alvo;
+                
+                // DISPARAR ILUMINAÇÃO DO TRAJETO REAL E DA LABEL (Ex: F, VB)
+                const alvoVisual = mapeamentoCanais[idTan];
+                if(alvoVisual) {
+                    const corVar = `var(--${alvoVisual.elem.toLowerCase()})`;
+                    
+                    // Acende o caminho anatômico
+                    const pathTrajeto = document.getElementById(alvoVisual.trajeto);
+                    if(pathTrajeto) {
+                        pathTrajeto.classList.add('ativo');
+                        pathTrajeto.style.setProperty('--cor-ativa', corVar);
+                    }
+                    
+                    // Acende a Letra Identificadora (F, VB, etc) na ponta correspondente
+                    const labelTexto = document.getElementById(alvoVisual.label);
+                    if(labelTexto) {
+                        labelTexto.classList.add('ativo');
+                        labelTexto.style.setProperty('--cor-ativa', corVar);
+                    }
+                    
+                    // Acende o órgão interno correspondente
+                    const orgaoAlvo = document.getElementById(`org-${alvoVisual.org}`);
+                    if(orgaoAlvo) orgaoAlvo.classList.add('ativo');
+                }
+
+                htmlTan = `
+                    <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                        <span style="color:#10b981; font-weight:bold; font-size:1rem;">Roteamento Balance Method (Dr. Tan):</span>
+                        <div class="grid-tan">
+                            <div class="tan-box"><div class="tan-box-title">Braço Esquerdo</div><strong>${sistema.be}</strong></div>
+                            <div class="tan-box"><div class="tan-box-title">Braço Direito</div><strong>${sistema.bd}</strong></div>
+                            <div class="tan-box"><div class="tan-box-title">Perna Esquerda</div><strong>${sistema.pe}</strong></div>
+                            <div class="tan-box"><div class="tan-box-title">Perna Direita</div><strong>${sistema.pd}</strong></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const pacienteObj = { nome, nasc, queixa, rota: rotaMissao, canal: canalAlvoTexto };
+            historicoPacientes.push(pacienteObj);
+            
+            const corpo = document.getElementById('historico-corpo');
+            if(historicoPacientes.length === 1) corpo.innerHTML = "";
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${nome}</strong></td><td>${nasc.split('-').reverse().join('/')}</td><td>${queixa}</td><td><span style="color:var(--gold);">${rotaMissao}</span></td><td><span style="color:#10b981;">${canalAlvoTexto.split(' - ')[0]}</span></td>`;
+            corpo.appendChild(tr);
+
+            document.getElementById('janela-diagnostico').innerHTML = `
+                <span style="color:var(--gold); font-size:1.25rem; font-weight:bold;">Matriz Ativada: ${nome}</span>
+                <p><strong>Eixo Numerológico:</strong> Rota de Missão ${rotaMissao}</p>
+                <p><strong>Estrutura Psíquica:</strong> ${psique}</p>
+                <p><strong>Queixa Principal:</strong> ${queixa}</p>
+                ${htmlTan}
+            `;
+
+            document.getElementById('res-numerologia').innerHTML = `Trajeto anatômico e identificadores acendidos no Homem Vitruviano.`;
+            document.getElementById('res-numerologia').style.display = "block";
+        }
+    </script>
+</body>
+</html>
